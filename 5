@@ -1,0 +1,135 @@
+using System;
+
+
+public interface IMyCloneable<T>
+{
+    T Clone(); 
+}
+
+
+public class Person : IMyCloneable<Person>, ICloneable
+{
+    public string Name { get; set; }
+    public int Age { get; set; }
+
+    public Person(string name, int age)
+    {
+        Name = name;
+        Age = age;
+    }
+
+    
+    public virtual Person Clone()
+    {
+        
+        return new Person(Name, Age);
+    }
+
+    
+    object ICloneable.Clone()
+    {
+        return this.Clone();
+    }
+
+    public override string ToString()
+    {
+        return $"Person: {Name}, {Age} лет";
+    }
+}
+
+
+public class Employee : Person, IMyCloneable<Employee>, ICloneable
+{
+    public string Position { get; set; }
+
+    public Employee(string name, int age, string position)
+        : base(name, age)
+    {
+        Position = position;
+    }
+
+    
+    public override Employee Clone()
+    {
+        
+        return new Employee(this.Name, this.Age, this.Position);
+    }
+
+    object ICloneable.Clone()
+    {
+        return this.Clone();
+    }
+
+    public override string ToString()
+    {
+        return $"Employee: {Name}, {Age} лет, должность: {Position}";
+    }
+}
+
+
+public class Manager : Employee, IMyCloneable<Manager>, ICloneable
+{
+    public int TeamSize { get; set; }
+
+    public Manager(string name, int age, string position, int teamSize)
+        : base(name, age, position)
+    {
+        TeamSize = teamSize;
+    }
+
+    
+    public override Manager Clone()
+    {
+        return new Manager(this.Name, this.Age, this.Position, this.TeamSize);
+    }
+
+    object ICloneable.Clone()
+    {
+        return this.Clone();
+    }
+
+    public override string ToString()
+    {
+        return $"Manager: {Name}, {Age} лет, должность: {Position}, команда из: {TeamSize} человек";
+    }
+}
+
+
+class Program
+{
+    static void Main()
+    {
+        
+        Person person = new Person("Кирилл", 17);
+        Employee employee = new Employee("Андрей", 39, "Программист");
+        Manager manager = new Manager("Ангелина", 40, "Руководитель", 5);
+
+        
+        Person personCopy = person.Clone();
+        Employee employeeCopy = employee.Clone();
+        Manager managerCopy = manager.Clone();
+
+        
+        Person personCloneStd = ((ICloneable)person).Clone() as Person;
+        Employee employeeCloneStd = ((ICloneable)employee).Clone() as Employee;
+        Manager managerCloneStd = ((ICloneable)manager).Clone() as Manager;
+
+        
+        Console.WriteLine("Оригинал:");
+        Console.WriteLine(person);
+        Console.WriteLine(employee);
+        Console.WriteLine(manager);
+        Console.WriteLine();
+
+        Console.WriteLine("Копия IMyCloneable:");
+        Console.WriteLine(personCopy);
+        Console.WriteLine(employeeCopy);
+        Console.WriteLine(managerCopy);
+        Console.WriteLine();
+
+        Console.WriteLine("Копия ICloneable:");
+        Console.WriteLine(personCloneStd);
+        Console.WriteLine(employeeCloneStd);
+        Console.WriteLine(managerCloneStd);
+    }
+}
