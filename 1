@@ -1,0 +1,166 @@
+using System;
+using System.Reflection;
+using System.Text;
+using Newtonsoft.Json;
+using System.Diagnostics;
+
+class F
+{
+    int i1;
+    int i2;
+    int i3;
+    int i4;
+    int i5;
+    public int[] mas;
+    public F()
+    {
+        i1 = 1; i2 = 2; i3 = 3; i4 = 4; i5 = 5;
+        mas = new int[] { 1, 2 };
+    }
+    public F Get() => new F();
+}
+
+static class CsvSerializer
+{
+    public static string Serialize(object obj)
+    {
+        if (obj == null) return "";
+        Type type = obj.GetType();
+        StringBuilder sb = new StringBuilder();
+        var members = type.GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+        foreach (var member in members)
+        {
+            if (member is FieldInfo field)
+            {
+                object value = field.GetValue(obj);
+                sb.Append(GetCsvValue(value));
+            }
+            else if (member is PropertyInfo prop && prop.GetMethod != null)
+            {
+                object value = prop.GetValue(obj);
+                sb.Append(GetCsvValue(value));
+            }
+        }
+        return sb.ToString();
+    }
+
+    private static string GetCsvValue(object value)
+    {
+        if (value == null)
+            return "";
+        if (value is Array arr)
+        {
+            StringBuilder sb = new StringBuilder();
+            foreach (var item in arr)
+            {
+                sb.Append(item).Append(";");
+            }
+            return sb.ToString().TrimEnd(';') + ",";
+        }
+        else
+        {
+            return value.ToString() + ",";
+        }
+    }
+
+    public static T Deserialize<T>(string csv)
+    {
+        T obj = Activator.CreateInstance<T>();
+        var type = typeof(T);
+        var members = type.GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+        string[] parts = csv.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+        int index = 0;
+        foreach (var member in members)
+        {
+            if (index >= parts.Length)
+                break;
+            if (member is FieldInfo field)
+            {
+                object value = ParseValue(field.FieldType, parts[index]);
+                field.SetValue(obj, value);
+                index++;
+            }
+            else if (member is PropertyInfo prop && prop.SetMethod != null)
+            {
+                object value = ParseValue(prop.PropertyType, parts[index]);
+                prop.SetValue(obj, value);
+                index++;
+            }
+        }
+        return obj;
+    }
+
+    private static object ParseValue(Type type, string str)
+    {
+        if (type.IsArray)
+        {
+            string[] elements = str.Split(';', StringSplitOptions.RemoveEmptyEntries);
+            Type elemType = type.GetElementType();
+            Array arr = Array.CreateInstance(elemType, elements.Length);
+            for (int i = 0; i < elements.Length; i++)
+            {
+                arr.SetValue(Convert.ChangeType(elements[i], elemType), i);
+            }
+            return arr;
+        }
+        else
+        {
+            if (type == typeof(int))
+                return int.Parse(str);
+            if (type == typeof(float))
+                return float.Parse(str);
+            if (type == typeof(double))
+                return double.Parse(str);
+            if (type == typeof(string))
+                return str;
+            return null;
+        }
+    }
+}
+
+class Program
+{
+    static void Main()
+    {
+        var obj = new F();
+        int iterations = 1000;
+        Stopwatch swSer = Stopwatch.StartNew();
+        string csvString = "";
+        for (int i = 0; i < iterations; i++)
+        {
+            csvString = CsvSerializer.Serialize(obj);
+        }
+        swSer.Stop();
+        Console.WriteLine("CSV:");
+        Console.WriteLine(csvString);
+        Console.WriteLine($"Сериализация {iterations} раз: {swSer.ElapsedMilliseconds} мс");
+        Stopwatch swOut = Stopwatch.StartNew();
+        Console.WriteLine(csvString);
+        swOut.Stop();
+        Console.WriteLine($"Время на вывод: {swOut.ElapsedMilliseconds} мс");
+        var swDes = Stopwatch.StartNew();
+        for (int i = 0; i < iterations; i++)
+        {
+            var deserializedObj = CsvSerializer.Deserialize<F>(csvString);
+        }
+        swDes.Stop();
+        Console.WriteLine("Десериализация:");
+        Console.WriteLine($"Десериализация {iterations} раз: {swDes.ElapsedMilliseconds} мс");
+        var swJsonSer = Stopwatch.StartNew();
+        string jsonString = "";
+        for (int i = 0; i < iterations; i++)
+        {
+            jsonString = JsonConvert.SerializeObject(obj);
+        }
+        swJsonSer.Stop();
+        Console.WriteLine("JSON:");
+        Console.WriteLine($"Сериализация JSON {iterations} раз: {swJsonSer.ElapsedMilliseconds} мс");
+        var swJsonDes = Stopwatch.StartNew();
+        for (int i = 0; i < iterations; i++)
+        {
+            var obj2 = JsonConvert.DeserializeObject<F>(jsonString);
+        }
+        swJsonDes.Stop();
+        Console.WriteLine($"Десериализация JSON {iterations} раз: {swJsonDes.ElapsedMilliseconds} мс");
+    }
+}
