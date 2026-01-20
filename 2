@@ -1,0 +1,214 @@
+using System;
+using System.IO;
+using System.Runtime.Serialization;
+using System.Xml.Serialization;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace Otus.Task1
+{
+    [DataContract]
+    [Serializable]
+    public class SaveFile
+    {
+        [XmlIgnore]
+        [DataMember]
+        public (double, double) Coords { get; set; }
+
+        [DataMember]
+        public string CurrentLocation { get; set; }
+
+        [XmlElement("u")]
+        [DataMember]
+        public User User { get; set; }
+
+        [DataMember]
+        public Item[] Items { get; set; }
+    }
+
+    [DataContract]
+    public class User
+    {
+        [XmlAttribute("level")]
+        [DataMember]
+        public int Level { get; set; }
+
+        [DataMember]
+        public string Name { get; set; }
+
+        [XmlIgnore]
+        [DataMember]
+        public string Gender { get; set; } 
+    }
+
+    [DataContract]
+    public class Item
+    {
+        [DataMember]
+        public string Name { get; set; }
+        [DataMember]
+        public int Quantity { get; set; }
+    }
+
+    class Program
+    {
+        static SaveFile Generate1()
+        {
+            return new SaveFile
+            {
+                Coords = (1241.44, 124145.4),
+                CurrentLocation = "Dungeon",
+                User = new User { Level = 10, Name = "Пушкин", Gender = "m" },
+                Items = new[] { new Item { Name = "Топор", Quantity = 2 } }
+            };
+        }
+
+        static SaveFile Generate2()
+        {
+            return new SaveFile
+            {
+                Coords = (121.44, 124.4),
+                CurrentLocation = "Subway",
+                User = new User { Level = 10, Name = "Иванов", Gender = "f" },
+                Items = new[] { new Item { Name = "Труба", Quantity = -2 } }
+            };
+        }
+
+        
+        static void SerializeDataContractBinary(SaveFile sf, string filename)
+        {
+            try
+            {
+                
+                foreach (var item in sf.Items)
+                {
+                    if (item.Quantity < 0)
+                        throw new Exception($"Quantity of item '{item.Name}' is less than 0");
+                }
+
+                var serializer = new DataContractSerializer(typeof(SaveFile));
+                using (var fs = new FileStream(filename, FileMode.Create))
+                {
+                    serializer.WriteObject(fs, sf);
+                }
+                Console.WriteLine($"DataContract binary serialized to {filename}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during DataContract binary serialization: {ex.Message}");
+            }
+        }
+
+        
+        static SaveFile DeserializeDataContractBinary(string filename)
+        {
+            try
+            {
+                var serializer = new DataContractSerializer(typeof(SaveFile));
+                using (var fs = new FileStream(filename, FileMode.Open))
+                {
+                    var obj = (SaveFile)serializer.ReadObject(fs);
+                    return obj;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during DataContract binary deserialization: {ex.Message}");
+                return null;
+            }
+        }
+
+        
+        static void SerializeJson(SaveFile sf, string filename)
+        {
+            try
+            {
+                foreach (var item in sf.Items)
+                {
+                    if (item.Quantity < 0)
+                        throw new Exception($"Quantity of item '{item.Name}' is less than 0");
+                }
+
+                var options = new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                };
+                options.Converters.Add(new GenderConverter());
+
+                string json = JsonSerializer.Serialize(sf, options);
+                File.WriteAllText(filename, json);
+                Console.WriteLine($"JSON serialized to {filename}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during JSON serialization: {ex.Message}");
+            }
+        }
+
+        static void SerializeXml(SaveFile sf, string filename)
+        {
+            try
+            {
+                foreach (var item in sf.Items)
+                {
+                    if (item.Quantity < 0)
+                        throw new Exception($"Quantity of item '{item.Name}' is less than 0");
+                }
+
+                var clone = new SaveFile
+                {
+                    CurrentLocation = sf.CurrentLocation,
+                    User = sf.User,
+                    Items = sf.Items
+                    
+                };
+
+                var serializer = new XmlSerializer(typeof(SaveFile));
+                using (var writer = new StreamWriter(filename))
+                {
+                    serializer.Serialize(writer, clone);
+                }
+                Console.WriteLine($"XML serialized to {filename}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during XML serialization: {ex.Message}");
+            }
+        }
+
+        public class GenderConverter : JsonConverter<string>
+        {
+            public override string Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            {
+                return reader.GetString();
+            }
+
+            public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options)
+            {
+                writer.WriteStringValue(value);
+            }
+        }
+
+        static void Main(string[] args)
+        {
+            var g1 = Generate1();
+
+            
+            string binPath = "savefile.dat"; 
+            string jsonPath = "savefile.json";
+            string xmlPath = "savefile.xml";
+
+            
+            SerializeDataContractBinary(g1, binPath);
+            SerializeJson(g1, jsonPath);
+            SerializeXml(g1, xmlPath);
+
+            
+            var loaded = DeserializeDataContractBinary(binPath);
+            if (loaded != null)
+            {
+                Console.WriteLine($"Deserialized SaveFile: Location={loaded.CurrentLocation}, User={loaded.User.Name}");
+            }
+        }
+    }
+}
