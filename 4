@@ -1,0 +1,109 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics; 
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+
+namespace ParallelTasksExample
+{
+    class Program
+    {
+        
+        static async Task Main()
+        {
+            
+            Console.WriteLine("Введите адрес папки:");
+            string folderPath = Console.ReadLine();
+
+            
+            if (!Directory.Exists(folderPath))
+            {
+                Console.WriteLine("Такой папки не существует.");
+                return;
+            }
+
+            
+            Stopwatch stopwatch = Stopwatch.StartNew();
+
+            
+            Console.WriteLine("\n--- Чтение всего файла в одной задаче ---");
+            await ReadFilesFullContentAsync(folderPath);
+
+            
+            Console.WriteLine("\n--- Построчное чтение каждого файла ---");
+            await ReadFilesLineByLineAsync(folderPath);
+
+            stopwatch.Stop();
+            Console.WriteLine($"\nВремя выполнения: {stopwatch.ElapsedMilliseconds} мс");
+        }
+
+        
+        static async Task ReadFilesFullContentAsync(string folderPath)
+        {
+            
+            var files = Directory.GetFiles(folderPath);
+
+            
+            var tasks = new List<Task<int>>();
+
+            
+            foreach (var file in files)
+            {
+                tasks.Add(Task.Run(async () =>
+                {
+                    
+                    string content = await File.ReadAllTextAsync(file);
+
+                    
+                    int spaceCount = content.Count(c => c == ' ');
+                    Console.WriteLine($"Файл: {Path.GetFileName(file)} - пробелов: {spaceCount}");
+                    return spaceCount;
+                }));
+            }
+
+            
+            int[] results = await Task.WhenAll(tasks);
+            Console.WriteLine("Общий подсчет пробелов (сквозной суммарный результат): " + results.Sum());
+        }
+
+        
+        static async Task ReadFilesLineByLineAsync(string folderPath)
+        {
+            var files = Directory.GetFiles(folderPath);
+            int totalSpaces = 0;
+
+            
+            var lineTasks = new List<Task<int>>();
+
+            foreach (var file in files)
+            {
+                
+                lineTasks.Add(Task.Run(async () =>
+                {
+                    int spacesInFile = 0;
+                    
+                    using (var reader = new StreamReader(file))
+                    {
+                        string line;
+                        
+                        while ((line = await reader.ReadLineAsync()) != null)
+                        {
+                            
+                            
+                            
+                            spacesInFile += line.Count(c => c == ' ');
+                        }
+                    }
+                    Console.WriteLine($"Файл: {Path.GetFileName(file)} - пробелов: {spacesInFile}");
+                    return spacesInFile;
+                }));
+            }
+
+            
+            int[] results = await Task.WhenAll(lineTasks);
+            totalSpaces = results.Sum();
+            Console.WriteLine($"Общий подсчет пробелов по всем файлам (построчно): {totalSpaces}");
+        }
+    }
+}
