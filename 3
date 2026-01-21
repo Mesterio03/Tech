@@ -126,13 +126,13 @@ namespace DelegatesAndEventsExample
                 
                 if (Path.GetFileName(args.FileName).Equals("123.rtf", StringComparison.OrdinalIgnoreCase))
                 {
-                    Console.WriteLine("Обнаружен файл '123.rtf', прекращаем поиск...");
+                    Console.WriteLine("Обнаружен файл 'Отчет по тех практике Глинский.rtf', прекращаем поиск...");
                     args.Cancel = true; 
                 }
             };
 
             
-            string folderPath = @"D:\123\321"; 
+            string folderPath = @"D:\Учеба\Глинский Леонид\Отчеты по практике"; 
 
             try
             {
